@@ -38,7 +38,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	fmt.Println("ex02 Init")
 	_, args := stub.GetFunctionAndParameters()
 	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
+	var Aval, Bval string // Asset holdings，这里可以考虑修改做保存字符串数据的参数
 	var err error
 
 	if len(args) != 4 {
@@ -47,24 +47,24 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 	// Initialize the chaincode
 	A = args[0]
-	Aval, err = strconv.Atoi(args[1])
+	Aval, err = args[1]//需要修改函数，不用将字符串转换为整型
 	if err != nil {
 		return shim.Error("Expecting integer value for asset holding")
 	}
 	B = args[2]
-	Bval, err = strconv.Atoi(args[3])
+	Bval, err = args[3]//需要修改函数，不用将字符串转换为整型
 	if err != nil {
 		return shim.Error("Expecting integer value for asset holding")
 	}
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
+	fmt.Printf("Aval = %s, Bval = %s\n", Aval, Bval)
 
 	// Write the state to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
+	err = stub.PutState(A, []byte(Aval))//需要修改函数，不用再来回转换
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
+	err = stub.PutState(B, []byte(Bval))//需要修改函数，不用再来回转换
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -91,54 +91,38 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 
 // Transaction makes payment of X units from A to B
 func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var X int          // Transaction value
+	var X string    // Entities，需要进行追加字符串的节点
+	var Xval string // Asset holdings，节点中已有的字符串
+	var S string          // Transaction value，追加的字符串
 	var err error
 
-	if len(args) != 3 {
+	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments. Expecting 3")
 	}
 
-	A = args[0]
-	B = args[1]
+	X = args[0]
 
 	// Get the state from the ledger
 	// TODO: will be nice to have a GetAllState call to ledger
-	Avalbytes, err := stub.GetState(A)
+	Xvalbytes, err := stub.GetState(X)
 	if err != nil {
 		return shim.Error("Failed to get state")
 	}
-	if Avalbytes == nil {
+	if Xvalbytes == nil {
 		return shim.Error("Entity not found")
 	}
-	Aval, _ = strconv.Atoi(string(Avalbytes))
-
-	Bvalbytes, err := stub.GetState(B)
-	if err != nil {
-		return shim.Error("Failed to get state")
-	}
-	if Bvalbytes == nil {
-		return shim.Error("Entity not found")
-	}
-	Bval, _ = strconv.Atoi(string(Bvalbytes))
+	Xval, _ = string(Avalbytes)
 
 	// Perform the execution
-	X, err = strconv.Atoi(args[2])
+	S, err = args[1]
 	if err != nil {
 		return shim.Error("Invalid transaction amount, expecting a integer value")
 	}
-	Aval = Aval - X
-	Bval = Bval + X
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
+	Xval = Xval + S
+	fmt.Printf(X+"val = %s\n", Xval)
 
 	// Write the state back to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
+	err = stub.PutState(X, []byte(Xval))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -152,10 +136,10 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 		return shim.Error("Incorrect number of arguments. Expecting 1")
 	}
 
-	A := args[0]
+	X := args[0]
 
 	// Delete the key from the state in ledger
-	err := stub.DelState(A)
+	err := stub.DelState(X)
 	if err != nil {
 		return shim.Error("Failed to delete state")
 	}
@@ -165,30 +149,30 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 
 // query callback representing the query of a chaincode
 func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var A string // Entities
+	var X string // Entities，要查询的节点
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
 	}
 
-	A = args[0]
+	X = args[0]
 
 	// Get the state from the ledger
-	Avalbytes, err := stub.GetState(A)
+	Xvalbytes, err := stub.GetState(X)
 	if err != nil {
-		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
+		jsonResp := "{\"Error\":\"Failed to get state for " + X + "\"}"
 		return shim.Error(jsonResp)
 	}
 
 	if Avalbytes == nil {
-		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
+		jsonResp := "{\"Error\":\"Nil amount for " + X + "\"}"
 		return shim.Error(jsonResp)
 	}
 
-	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
+	jsonResp := "{\"Name\":\"" + X + "\",\"Content\":\"" + string(Xvalbytes) + "\"}"
 	fmt.Printf("Query Response:%s\n", jsonResp)
-	return shim.Success(Avalbytes)
+	return shim.Success(Xvalbytes)
 }
 
 func main() {
